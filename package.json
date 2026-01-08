@@ -1,0 +1,59 @@
+{
+  "name": "bsl-analyzer",
+  "displayName": "BSL Analyzer",
+  "description": "High-performance Language Server for BSL (1C:Enterprise)",
+  "version": "0.1.0",
+  "publisher": "bsl-analyzer",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters"
+  ],
+  "activationEvents": [
+    "onLanguage:bsl"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "bsl",
+        "extensions": [".bsl", ".os"],
+        "aliases": ["BSL", "1C"]
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "BSL Analyzer",
+      "properties": {
+        "bsl-analyzer.server.path": {
+          "type": "string",
+          "default": "",
+          "description": "Path to bsl-analyzer executable. If empty, will look in PATH."
+        },
+        "bsl-analyzer.trace.server": {
+          "type": "string",
+          "enum": ["off", "messages", "verbose"],
+          "default": "off",
+          "description": "Traces the communication between VS Code and the language server."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.75.0",
+    "typescript": "^5.3.3"
+  }
+}
