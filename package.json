@@ -13,7 +13,9 @@
     "Linters"
   ],
   "activationEvents": [
-    "onLanguage:bsl"
+    "onLanguage:bsl",
+    "workspaceContains:**/*.bsl",
+    "workspaceContains:**/*.os"
   ],
   "main": "./out/extension.js",
   "contributes": {

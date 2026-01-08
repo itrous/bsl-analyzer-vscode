@@ -16,9 +16,15 @@ export function activate(context: vscode.ExtensionContext): void {
     const config = vscode.workspace.getConfiguration('bsl-analyzer');
     let serverPath = config.get<string>('server.path', '');
 
+    console.log(`Server path from config: "${serverPath}"`);
+    console.log(`Workspace folders: ${vscode.workspace.workspaceFolders?.map(f => f.uri.fsPath).join(', ') || 'none'}`);
+
     if (!serverPath) {
         // Try to find bsl-analyzer in PATH
         serverPath = 'bsl-analyzer';
+        console.log('No server path configured, using PATH lookup');
+    } else {
+        console.log(`Using configured server path: ${serverPath}`);
     }
 
     // Server options
