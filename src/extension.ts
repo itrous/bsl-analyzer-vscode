@@ -32,7 +32,17 @@ export function activate(context: vscode.ExtensionContext): void {
         command: serverPath,
         args: [],
         transport: TransportKind.stdio,
+        options: {
+            env: {
+                ...process.env,
+                BSL_LOG: 'info',
+                RUST_BACKTRACE: '1'
+            }
+        }
     };
+
+    console.log(`Server command: ${serverPath}`);
+    console.log(`Transport: stdio`);
 
     // Client options
     const clientOptions: LanguageClientOptions = {
@@ -54,9 +64,12 @@ export function activate(context: vscode.ExtensionContext): void {
     );
 
     // Start the client (and server)
-    client.start().catch((err) => {
+    client.start().then(() => {
+        console.log('Language client started successfully');
+    }).catch((err) => {
         vscode.window.showErrorMessage(`Failed to start BSL Analyzer: ${err.message}`);
         console.error('Failed to start language client:', err);
+        console.error('Error stack:', err.stack);
     });
 
     console.log('BSL Analyzer language client started');
