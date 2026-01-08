@@ -31,6 +31,8 @@ export function activate(context: vscode.ExtensionContext): void {
     const logFile = config.get<string>('server.logFile', '');
 
     // Server options
+    // Note: TransportKind.stdio tells vscode-languageclient to use stdio,
+    // but we should NOT pass --stdio arg since our server defaults to LSP mode
     const serverOptions: ServerOptions = {
         command: serverPath,
         args: [],
