@@ -46,14 +46,23 @@ cargo build --release
 
 ### 4. Настройка пути к серверу
 
-Если хотите указать конкретный путь к `bsl-analyzer`:
+**test-workspace уже настроен** с правильным путём к серверу в `.vscode/settings.json`.
 
-1. File → Preferences → Settings
+Если хотите указать конкретный путь к `bsl-analyzer` в других проектах:
+
+1. File → Preferences → Settings (Workspace)
 2. Найдите "BSL Analyzer"
 3. Установите `bsl-analyzer.server.path`:
    ```
    /home/itrous/src/lsp/bsl-analyzer/target/release/bsl-analyzer
    ```
+
+Или создайте `.vscode/settings.json` в корне workspace:
+```json
+{
+  "bsl-analyzer.server.path": "/path/to/bsl-analyzer/target/release/bsl-analyzer"
+}
+```
 
 ### 5. Включение трассировки
 

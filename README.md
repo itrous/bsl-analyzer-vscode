@@ -31,6 +31,7 @@ Language Server Protocol client for [bsl-analyzer](https://github.com/your-org/b
    ```
 
 4. Press F5 in VSCode to launch a new window with the extension loaded
+5. Open `test-workspace` folder - it's already configured with the correct server path
 
 ## Configuration
 
@@ -38,12 +39,14 @@ Language Server Protocol client for [bsl-analyzer](https://github.com/your-org/b
 
 Path to the `bsl-analyzer` executable. If not set, the extension will look for `bsl-analyzer` in your PATH.
 
-Example:
+Example (in workspace `.vscode/settings.json`):
 ```json
 {
   "bsl-analyzer.server.path": "/path/to/bsl-analyzer/target/release/bsl-analyzer"
 }
 ```
+
+**Note:** The `test-workspace` folder included with this extension is already configured with the correct path.
 
 ### `bsl-analyzer.trace.server`
 
