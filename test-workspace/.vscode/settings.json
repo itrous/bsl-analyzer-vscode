@@ -1,4 +1,5 @@
 {
   "bsl-analyzer.server.path": "/home/itrous/src/lsp/bsl-analyzer/target/release/bsl-analyzer",
-  "bsl-analyzer.trace.server": "verbose"
+  "bsl-analyzer.trace.server": "verbose",
+  "bsl-analyzer.server.logFile": "/tmp/bsl-analyzer.log"
 }

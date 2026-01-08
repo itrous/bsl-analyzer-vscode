@@ -40,6 +40,11 @@
           "enum": ["off", "messages", "verbose"],
           "default": "off",
           "description": "Traces the communication between VS Code and the language server."
+        },
+        "bsl-analyzer.server.logFile": {
+          "type": "string",
+          "default": "",
+          "description": "Path to log file for server logs (e.g., /tmp/bsl-analyzer.log). Leave empty to disable logging."
         }
       }
     }

@@ -27,6 +27,9 @@ export function activate(context: vscode.ExtensionContext): void {
         console.log(`Using configured server path: ${serverPath}`);
     }
 
+    // Get log file from config
+    const logFile = config.get<string>('server.logFile', '');
+
     // Server options
     const serverOptions: ServerOptions = {
         command: serverPath,
@@ -35,11 +38,16 @@ export function activate(context: vscode.ExtensionContext): void {
         options: {
             env: {
                 ...process.env,
-                BSL_LOG: 'info',
+                BSL_LOG: logFile ? 'info' : 'off',
+                BSL_LOG_FILE: logFile || undefined,
                 RUST_BACKTRACE: '1'
             }
         }
     };
+
+    if (logFile) {
+        console.log(`Server logs will be written to: ${logFile}`);
+    }
 
     console.log(`Server command: ${serverPath}`);
     console.log(`Transport: stdio`);
