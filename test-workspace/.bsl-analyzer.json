@@ -1,0 +1,10 @@
+{
+  "diagnostics": {
+    "enabled": true,
+    "rules": {
+      "EmptyCodeBlock": "Warning",
+      "CognitiveComplexity": "Warning",
+      "MagicNumber": "Information"
+    }
+  }
+}

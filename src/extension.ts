@@ -34,8 +34,8 @@ export function activate(context: vscode.ExtensionContext): void {
             { scheme: 'file', language: 'bsl' },
         ],
         synchronize: {
-            // Notify the server about file changes to .bslls.json files
-            fileEvents: vscode.workspace.createFileSystemWatcher('**/.bslls.json'),
+            // Notify the server about file changes to .bsl-analyzer.json and .bsl-language-server.json files
+            fileEvents: vscode.workspace.createFileSystemWatcher('**/{.bsl-analyzer.json,.bsl-language-server.json}'),
         },
     };
 
