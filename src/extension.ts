@@ -31,8 +31,6 @@ export function activate(context: vscode.ExtensionContext): void {
     const logFile = config.get<string>('server.logFile', '');
 
     // Server options
-    // Note: TransportKind.stdio tells vscode-languageclient to use stdio,
-    // but we should NOT pass --stdio arg since our server defaults to LSP mode
     const serverOptions: ServerOptions = {
         command: serverPath,
         args: [],
@@ -51,18 +49,26 @@ export function activate(context: vscode.ExtensionContext): void {
         console.log(`Server logs will be written to: ${logFile}`);
     }
 
-    console.log(`Server command: ${serverPath}`);
-    console.log(`Transport: stdio`);
+    console.log(`Server command: ${serverPath} --stdio`);
 
-    // Client options
+    // Client options with explicit completion support
     const clientOptions: LanguageClientOptions = {
         documentSelector: [
             { scheme: 'file', language: 'bsl' },
         ],
         synchronize: {
-            // Notify the server about file changes to .bsl-analyzer.json and .bsl-language-server.json files
             fileEvents: vscode.workspace.createFileSystemWatcher('**/{.bsl-analyzer.json,.bsl-language-server.json}'),
         },
+        // Explicitly enable completion
+        initializationOptions: {},
+        middleware: {
+            provideCompletionItem: async (document, position, context, token, next) => {
+                console.log(`[CLIENT] Completion requested at ${document.uri.fsPath}:${position.line}:${position.character}`);
+                const result = await next(document, position, context, token);
+                console.log(`[CLIENT] Completion result:`, result);
+                return result;
+            }
+        }
     };
 
     // Create the language client
@@ -76,13 +82,11 @@ export function activate(context: vscode.ExtensionContext): void {
     // Start the client (and server)
     client.start().then(() => {
         console.log('Language client started successfully');
+        console.log('Server capabilities:', JSON.stringify(client?.initializeResult?.capabilities, null, 2));
     }).catch((err) => {
         vscode.window.showErrorMessage(`Failed to start BSL Analyzer: ${err.message}`);
         console.error('Failed to start language client:', err);
-        console.error('Error stack:', err.stack);
     });
-
-    console.log('BSL Analyzer language client started');
 }
 
 export function deactivate(): Thenable<void> | undefined {
