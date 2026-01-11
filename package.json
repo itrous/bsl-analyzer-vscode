@@ -45,6 +45,11 @@
           "type": "string",
           "default": "",
           "description": "Path to log file for server logs (e.g., /tmp/bsl-analyzer.log). Leave empty to disable logging."
+        },
+        "bsl-analyzer.server.extraEnv": {
+          "type": "object",
+          "default": {},
+          "description": "Extra environment variables for the server process. Example: {\"BSL_PROFILE\": \"*>10\"}"
         }
       }
     }

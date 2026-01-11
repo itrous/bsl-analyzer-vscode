@@ -30,23 +30,35 @@ export function activate(context: vscode.ExtensionContext): void {
     // Get log file from config
     const logFile = config.get<string>('server.logFile', '');
 
+    // Get extra environment variables from config
+    const extraEnv = config.get<Record<string, string>>('server.extraEnv', {});
+
+    // Build environment for server process
+    const serverEnv: Record<string, string | undefined> = {
+        ...process.env,
+        BSL_LOG: logFile ? 'info' : 'warn',
+        BSL_LOG_FILE: logFile || undefined,
+        RUST_BACKTRACE: '1',
+        // Extra env vars override defaults
+        ...extraEnv,
+    };
+
     // Server options
     const serverOptions: ServerOptions = {
         command: serverPath,
         args: [],
         transport: TransportKind.stdio,
         options: {
-            env: {
-                ...process.env,
-                BSL_LOG: logFile ? 'info' : 'off',
-                BSL_LOG_FILE: logFile || undefined,
-                RUST_BACKTRACE: '1'
-            }
+            env: serverEnv
         }
     };
 
     if (logFile) {
         console.log(`Server logs will be written to: ${logFile}`);
+    }
+
+    if (Object.keys(extraEnv).length > 0) {
+        console.log(`Extra environment variables:`, extraEnv);
     }
 
     console.log(`Server command: ${serverPath} --stdio`);
