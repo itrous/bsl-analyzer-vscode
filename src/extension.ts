@@ -1,4 +1,3 @@
-import * as path from 'path';
 import * as vscode from 'vscode';
 import {
     LanguageClient,
@@ -6,29 +5,28 @@ import {
     ServerOptions,
     TransportKind,
 } from 'vscode-languageclient/node';
+import { ensureLauncher, getInstallPath } from './download';
 
 let client: LanguageClient | undefined;
 
-export function activate(context: vscode.ExtensionContext): void {
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
     console.log('BSL Analyzer extension is now active');
 
-    // Get server path from configuration
-    const config = vscode.workspace.getConfiguration('bsl-analyzer');
-    let serverPath = config.get<string>('server.path', '');
-
-    console.log(`Server path from config: "${serverPath}"`);
-    console.log(`Workspace folders: ${vscode.workspace.workspaceFolders?.map(f => f.uri.fsPath).join(', ') || 'none'}`);
-
+    const serverPath = await ensureLauncher(context);
     if (!serverPath) {
-        // Try to find bsl-analyzer in PATH
-        serverPath = 'bsl-analyzer';
-        console.log('No server path configured, using PATH lookup');
-    } else {
-        console.log(`Using configured server path: ${serverPath}`);
+        return;
     }
+
+    console.log(`Using server: ${serverPath}`);
+
+    const config = vscode.workspace.getConfiguration('bsl-analyzer');
 
     // Get log file from config
     const logFile = config.get<string>('server.logFile', '');
+
+    // Get heaptrack profiling config
+    const heaptrackEnabled = config.get<boolean>('server.heaptrack.enabled', false);
+    const heaptrackOutput = config.get<string>('server.heaptrack.output', '/tmp/bsl-heaptrack.zst');
 
     // Get extra environment variables from config
     const extraEnv = config.get<Record<string, string>>('server.extraEnv', {});
@@ -42,6 +40,16 @@ export function activate(context: vscode.ExtensionContext): void {
         // Extra env vars override defaults
         ...extraEnv,
     };
+
+    // Add heaptrack profiling if enabled
+    if (heaptrackEnabled) {
+        const heaptrackLib = '/usr/lib/heaptrack/libheaptrack_preload.so';
+        serverEnv.LD_PRELOAD = serverEnv.LD_PRELOAD
+            ? `${heaptrackLib}:${serverEnv.LD_PRELOAD}`
+            : heaptrackLib;
+        serverEnv.DUMP_HEAPTRACK_OUTPUT = heaptrackOutput;
+        console.log(`Heaptrack profiling enabled, output: ${heaptrackOutput}`);
+    }
 
     // Server options
     const serverOptions: ServerOptions = {
@@ -99,6 +107,19 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.window.showErrorMessage(`Failed to start BSL Analyzer: ${err.message}`);
         console.error('Failed to start language client:', err);
     });
+
+    // Register command to copy server path (useful for MCP configuration)
+    context.subscriptions.push(
+        vscode.commands.registerCommand('bsl-analyzer.copyServerPath', () => {
+            const serverBinary = getInstallPath();
+            if (serverBinary) {
+                vscode.env.clipboard.writeText(serverBinary);
+                vscode.window.showInformationMessage(`BSL Analyzer path copied: ${serverBinary}`);
+            } else {
+                vscode.window.showWarningMessage('BSL Analyzer: unsupported platform');
+            }
+        })
+    );
 }
 
 export function deactivate(): Thenable<void> | undefined {

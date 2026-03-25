@@ -5,6 +5,10 @@
   "version": "0.1.0",
   "publisher": "bsl-analyzer",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/itrous/bsl-analyzer-vscode.git"
+  },
   "engines": {
     "vscode": "^1.75.0"
   },
@@ -26,14 +30,31 @@
         "aliases": ["BSL", "1C"]
       }
     ],
+    "commands": [
+      {
+        "command": "bsl-analyzer.copyServerPath",
+        "title": "BSL Analyzer: Copy Server Path"
+      }
+    ],
     "configuration": {
       "type": "object",
       "title": "BSL Analyzer",
       "properties": {
+        "bsl-analyzer.server.source": {
+          "type": "string",
+          "enum": ["github", "custom"],
+          "default": "github",
+          "description": "Source for downloading bsl-analyzer. 'github' uses GitHub Releases (opensource), 'custom' uses a custom release server."
+        },
+        "bsl-analyzer.server.customUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Custom release server URL (e.g., https://dev.runsystems.ru/releases). Used when server.source is 'custom'."
+        },
         "bsl-analyzer.server.path": {
           "type": "string",
           "default": "",
-          "description": "Path to bsl-analyzer executable. If empty, will look in PATH."
+          "description": "Path to bsl-analyzer executable. If set, disables auto-download and uses this path directly."
         },
         "bsl-analyzer.trace.server": {
           "type": "string",
@@ -50,6 +71,16 @@
           "type": "object",
           "default": {},
           "description": "Extra environment variables for the server process. Example: {\"BSL_PROFILE\": \"*>10\"}"
+        },
+        "bsl-analyzer.server.heaptrack.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable heaptrack memory profiling. Requires heaptrack to be installed."
+        },
+        "bsl-analyzer.server.heaptrack.output": {
+          "type": "string",
+          "default": "/tmp/bsl-heaptrack.zst",
+          "description": "Output file for heaptrack profiling data."
         }
       }
     }

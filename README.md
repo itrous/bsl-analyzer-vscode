@@ -1,6 +1,6 @@
-# BSL Analyzer VSCode Extension
+# BSL Analyzer
 
-Language Server Protocol client for [bsl-analyzer](https://github.com/your-org/bsl-analyzer) - a high-performance Language Server for BSL (1C:Enterprise).
+High-performance Language Server for BSL (1C:Enterprise) — code analysis, autocompletion, diagnostics, and MCP support for AI assistants.
 
 ## Features
 
@@ -8,70 +8,47 @@ Language Server Protocol client for [bsl-analyzer](https://github.com/your-org/b
 - **Go to Definition**: Navigate to symbol definitions (F12)
 - **Find References**: Find all references to a symbol (Shift+F12)
 - **Semantic Highlighting**: Enhanced syntax highlighting based on semantic analysis
+- **Auto-download**: Server binary is downloaded automatically on first launch
+- **MCP Server**: Built-in MCP support for AI assistants (Cursor, Claude Code)
 
 ## Installation
 
-### From Source
+Install from VS Code Marketplace or download `.vsix` from [GitHub Releases](https://github.com/itrous/bsl-analyzer-vscode/releases).
 
-1. Build the bsl-analyzer server:
-   ```bash
-   cd ../bsl-analyzer
-   cargo build --release
-   ```
-
-2. Install extension dependencies:
-   ```bash
-   cd ../bsl-analyzer-vscode
-   npm install
-   ```
-
-3. Compile the extension:
-   ```bash
-   npm run compile
-   ```
-
-4. Press F5 in VSCode to launch a new window with the extension loaded
-5. Open `test-workspace` folder - it's already configured with the correct server path
+The extension automatically downloads the `bsl-analyzer` server on first launch — no manual setup required.
 
 ## Configuration
 
-### `bsl-analyzer.server.path`
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `bsl-analyzer.server.source` | `github` | Download source: `github` (opensource) or `custom` (proprietary server) |
+| `bsl-analyzer.server.customUrl` | | Custom release server URL |
+| `bsl-analyzer.server.path` | | Manual path to server binary (disables auto-download) |
+| `bsl-analyzer.server.logFile` | | Path to server log file |
+| `bsl-analyzer.server.extraEnv` | `{}` | Extra environment variables for the server |
+| `bsl-analyzer.trace.server` | `off` | Tracing: `off`, `messages`, or `verbose` |
 
-Path to the `bsl-analyzer` executable. If not set, the extension will look for `bsl-analyzer` in your PATH.
+## MCP Configuration
 
-Example (in workspace `.vscode/settings.json`):
+BSL Analyzer includes a built-in MCP server for use with AI assistants like Cursor or Claude Code.
+
+Use the command **BSL Analyzer: Copy Server Path** (`Ctrl+Shift+P` → "BSL Analyzer: Copy Server Path") to get the binary path, then add to your `.mcp.json`:
+
 ```json
 {
-  "bsl-analyzer.server.path": "/path/to/bsl-analyzer/target/release/bsl-analyzer"
+  "mcpServers": {
+    "bsl-analyzer": {
+      "command": "/path/to/bsl-analyzer",
+      "args": ["mcp", "--source-dir", "src/cf"]
+    }
+  }
 }
 ```
 
-**Note:** The `test-workspace` folder included with this extension is already configured with the correct path.
+## Links
 
-### `bsl-analyzer.trace.server`
-
-Enable tracing of communication between VSCode and the language server:
-- `off` (default): No tracing
-- `messages`: Trace message headers
-- `verbose`: Trace full messages
-
-## Development
-
-### Running from Source
-
-1. Open this folder in VSCode
-2. Run `npm install` to install dependencies
-3. Press F5 to launch extension development host
-4. Open a `.bsl` file to activate the extension
-
-### Building VSIX Package
-
-```bash
-npm install -g @vscode/vsce
-vsce package
-```
-
-This will create a `.vsix` file that can be installed manually.
+- [BSL Analyzer](https://github.com/itrous/bsl-analyzer) — the language server
+- [Issues](https://github.com/itrous/bsl-analyzer-vscode/issues)
 
 ## License
 
