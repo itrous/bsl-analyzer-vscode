@@ -120,6 +120,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             }
         })
     );
+
+    // Register debug adapter factory
+    context.subscriptions.push(
+        vscode.debug.registerDebugAdapterDescriptorFactory('bsl', {
+            createDebugAdapterDescriptor(_session: vscode.DebugSession): vscode.ProviderResult<vscode.DebugAdapterDescriptor> {
+                return new vscode.DebugAdapterExecutable(serverPath, ['dap']);
+            }
+        })
+    );
 }
 
 export function deactivate(): Thenable<void> | undefined {

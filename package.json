@@ -2,7 +2,7 @@
   "name": "bsl-analyzer",
   "displayName": "BSL Analyzer",
   "description": "High-performance Language Server for BSL (1C:Enterprise)",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "bsl-analyzer",
   "license": "MIT",
   "repository": {
@@ -14,20 +14,73 @@
   },
   "categories": [
     "Programming Languages",
-    "Linters"
+    "Linters",
+    "Debuggers"
   ],
   "activationEvents": [
     "onLanguage:bsl",
     "workspaceContains:**/*.bsl",
-    "workspaceContains:**/*.os"
+    "onDebugResolve:bsl"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "languages": [
       {
         "id": "bsl",
-        "extensions": [".bsl", ".os"],
+        "extensions": [".bsl"],
         "aliases": ["BSL", "1C"]
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "bsl",
+        "label": "BSL Debug",
+        "languages": ["bsl"],
+        "configurationAttributes": {
+          "attach": {
+            "required": ["host", "port", "infobaseName"],
+            "properties": {
+              "host": {
+                "type": "string",
+                "description": "1C debug server host",
+                "default": "localhost"
+              },
+              "port": {
+                "type": "number",
+                "description": "1C debug server port",
+                "default": 1550
+              },
+              "infobaseName": {
+                "type": "string",
+                "description": "1C infobase name"
+              },
+              "autoAttachTargets": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": ["Client", "Server", "HTTPService"]
+                },
+                "default": ["Client", "Server", "HTTPService"],
+                "description": "Target types to auto-attach to. Default: all."
+              }
+            }
+          }
+        },
+        "configurationSnippets": [
+          {
+            "label": "BSL: Attach to 1C Debug Server",
+            "description": "Attach to a running 1C debug server",
+            "body": {
+              "type": "bsl",
+              "request": "attach",
+              "name": "Attach to 1C",
+              "host": "localhost",
+              "port": 1550,
+              "infobaseName": "${1:my_infobase}",
+              "autoAttachTargets": ["Client", "Server", "HTTPService"]
+            }
+          }
+        ]
       }
     ],
     "commands": [
