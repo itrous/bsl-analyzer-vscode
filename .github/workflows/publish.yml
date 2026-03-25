@@ -1,4 +1,4 @@
-name: Publish Extension
+name: Release VSIX
 
 on:
   push:
@@ -6,8 +6,10 @@ on:
       - 'v*'
 
 jobs:
-  publish:
+  release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -17,17 +19,6 @@ jobs:
 
       - run: npm ci
 
-      - name: Publish to VS Code Marketplace
-        run: npx @vscode/vsce publish --no-update-package-json
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
-
-      - name: Publish to Open VSX (Cursor)
-        run: npx ovsx publish --no-update-package-json
-        env:
-          OVSX_PAT: ${{ secrets.OVSX_PAT }}
-        continue-on-error: true
-
       - name: Build VSIX
         run: npx @vscode/vsce package
 
@@ -35,3 +26,14 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: '*.vsix'
+
+      # Uncomment when Marketplace publisher is ready:
+      # - name: Publish to VS Code Marketplace
+      #   run: npx @vscode/vsce publish --no-update-package-json
+      #   env:
+      #     VSCE_PAT: ${{ secrets.VSCE_PAT }}
+      #
+      # - name: Publish to Open VSX (Cursor)
+      #   run: npx ovsx publish --no-update-package-json
+      #   env:
+      #     OVSX_PAT: ${{ secrets.OVSX_PAT }}
