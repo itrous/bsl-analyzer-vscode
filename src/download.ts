@@ -6,6 +6,29 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 
 const GITHUB_REPO = 'itrous/bsl-analyzer';
+const META_FILENAME = '.bsl-analyzer.meta.json';
+
+interface SourceMeta {
+    source: string;
+    customUrl: string;
+}
+
+function getMetaPath(installDir: string): string {
+    return path.join(installDir, META_FILENAME);
+}
+
+function readMeta(installDir: string): SourceMeta | undefined {
+    try {
+        const raw = fs.readFileSync(getMetaPath(installDir), 'utf-8');
+        return JSON.parse(raw) as SourceMeta;
+    } catch {
+        return undefined;
+    }
+}
+
+function writeMeta(installDir: string, meta: SourceMeta): void {
+    fs.writeFileSync(getMetaPath(installDir), JSON.stringify(meta, null, 2));
+}
 
 interface PlatformInfo {
     /** Asset name on release servers (e.g. bsl-analyzer-linux-amd64) */
@@ -105,12 +128,21 @@ export async function ensureLauncher(context: vscode.ExtensionContext): Promise<
 
     const launcherPath = path.join(platformInfo.installDir, platformInfo.localName);
 
-    if (fs.existsSync(launcherPath)) {
-        return launcherPath;
-    }
-
     const source = config.get<string>('server.source', 'github');
     const customUrl = config.get<string>('server.customUrl', '');
+    const currentMeta: SourceMeta = { source, customUrl };
+
+    if (fs.existsSync(launcherPath)) {
+        const savedMeta = readMeta(platformInfo.installDir);
+        const sourceChanged = savedMeta
+            && (savedMeta.source !== currentMeta.source || savedMeta.customUrl !== currentMeta.customUrl);
+
+        if (!sourceChanged) {
+            return launcherPath;
+        }
+
+        console.log(`BSL Analyzer: server source changed (${savedMeta.source} → ${currentMeta.source}), re-downloading`);
+    }
 
     let downloadUrl: string;
     if (source === 'custom' && customUrl) {
@@ -135,6 +167,8 @@ export async function ensureLauncher(context: vscode.ExtensionContext): Promise<
                 if (process.platform !== 'win32') {
                     fs.chmodSync(launcherPath, 0o755);
                 }
+
+                writeMeta(platformInfo.installDir, currentMeta);
 
                 return launcherPath;
             } catch (err: any) {
