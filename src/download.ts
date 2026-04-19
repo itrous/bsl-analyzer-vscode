@@ -1,3 +1,4 @@
+import { spawnSync } from 'child_process';
 import * as fs from 'fs';
 import * as https from 'https';
 import * as http from 'http';
@@ -7,6 +8,19 @@ import * as vscode from 'vscode';
 
 const GITHUB_REPO = 'itrous/bsl-analyzer';
 const META_FILENAME = '.bsl-analyzer.meta.json';
+
+/**
+ * Minimum launcher version required by this extension.
+ *
+ * Bump whenever the launcher ships a behavioural change the extension
+ * relies on. Installed launchers older than this will be re-downloaded
+ * on the next activation.
+ *
+ * 0.1.125 — launcher now ties the spawned bsl-analyzer-app to its own
+ * lifetime (Linux PR_SET_PDEATHSIG, Windows Job Object), so closing
+ * VS Code no longer leaves the analyzer running as an orphan.
+ */
+const MIN_LAUNCHER_VERSION: [number, number, number] = [0, 1, 125];
 
 interface SourceMeta {
     source: string;
@@ -92,6 +106,41 @@ function downloadFile(url: string): Promise<Buffer> {
     });
 }
 
+type SemVer = [number, number, number];
+
+function parseSemver(raw: string): SemVer | undefined {
+    const match = raw.match(/(\d+)\.(\d+)\.(\d+)/);
+    if (!match) {
+        return undefined;
+    }
+    return [parseInt(match[1], 10), parseInt(match[2], 10), parseInt(match[3], 10)];
+}
+
+function compareSemver(a: SemVer, b: SemVer): number {
+    for (let i = 0; i < 3; i++) {
+        if (a[i] !== b[i]) {
+            return a[i] - b[i];
+        }
+    }
+    return 0;
+}
+
+/** Returns the installed launcher's version, or undefined if it cannot be determined. */
+function getInstalledLauncherVersion(launcherPath: string): SemVer | undefined {
+    try {
+        const result = spawnSync(launcherPath, ['--launcher-version'], {
+            timeout: 5000,
+            encoding: 'utf-8',
+        });
+        if (result.error || result.status !== 0) {
+            return undefined;
+        }
+        return parseSemver(result.stdout);
+    } catch {
+        return undefined;
+    }
+}
+
 function getGitHubDownloadUrl(platformInfo: PlatformInfo): string {
     return `https://github.com/${GITHUB_REPO}/releases/latest/download/${platformInfo.assetName}`;
 }
@@ -137,11 +186,21 @@ export async function ensureLauncher(context: vscode.ExtensionContext): Promise<
         const sourceChanged = savedMeta
             && (savedMeta.source !== currentMeta.source || savedMeta.customUrl !== currentMeta.customUrl);
 
-        if (!sourceChanged) {
-            return launcherPath;
+        if (sourceChanged) {
+            console.log(`BSL Analyzer: server source changed (${savedMeta.source} → ${currentMeta.source}), re-downloading`);
+        } else {
+            // Source unchanged — check whether the on-disk launcher is
+            // recent enough for this extension. A too-old launcher can
+            // be missing features or fixes the extension depends on
+            // (e.g. child-lifetime binding added in 0.1.125).
+            const installedVersion = getInstalledLauncherVersion(launcherPath);
+            if (installedVersion && compareSemver(installedVersion, MIN_LAUNCHER_VERSION) >= 0) {
+                return launcherPath;
+            }
+            const installedStr = installedVersion ? installedVersion.join('.') : 'unknown';
+            const minStr = MIN_LAUNCHER_VERSION.join('.');
+            console.log(`BSL Analyzer: launcher ${installedStr} < ${minStr}, re-downloading`);
         }
-
-        console.log(`BSL Analyzer: server source changed (${savedMeta.source} → ${currentMeta.source}), re-downloading`);
     }
 
     let downloadUrl: string;
