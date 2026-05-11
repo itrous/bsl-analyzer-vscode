@@ -1,55 +1,52 @@
-# BSL Analyzer
+# 1C BSL Analyzer
 
-High-performance Language Server for BSL (1C:Enterprise) — code analysis, autocompletion, diagnostics, and MCP support for AI assistants.
+Расширение VS Code для разработки на BSL (1C:Enterprise): диагностика, автодополнение, переходы по коду и семантическая подсветка через language server.
 
-## Features
+## Возможности
 
-- **Diagnostics**: Real-time code analysis with 101+ diagnostic rules
-- **Go to Definition**: Navigate to symbol definitions (F12)
-- **Find References**: Find all references to a symbol (Shift+F12)
-- **Semantic Highlighting**: Enhanced syntax highlighting based on semantic analysis
-- **Auto-download**: Server binary is downloaded automatically on first launch
-- **MCP Server**: Built-in MCP support for AI assistants (Cursor, Claude Code)
+- **Диагностика**: анализ BSL-кода во время редактирования
+- **Автодополнение**: контекстные подсказки в модулях BSL
+- **Переход к определению**: навигация к объявлениям символов
+- **Семантическая подсветка**: более точная раскраска кода на основе анализа
+- **Автоматическая установка и обновления**: `bsl-analyzer-app` скачивается и обновляется из расширения
 
-## Installation
+## Установка
 
-Install from VS Code Marketplace or download `.vsix` from [GitHub Releases](https://github.com/itrous/bsl-analyzer-vscode/releases).
+Установите расширение из VS Code Marketplace или скачайте `.vsix` из [GitHub Releases](https://github.com/itrous/bsl-analyzer-vscode/releases).
 
-The extension automatically downloads the `bsl-analyzer` server on first launch — no manual setup required.
+При первом запуске расширение автоматически скачает `bsl-analyzer-app`. Версия установленного приложения отображается в строке состояния VS Code. Нажмите на элемент строки состояния или выполните команду **BSL Analyzer: Check for Updates**, чтобы проверить обновления вручную.
 
-## Configuration
+## Настройки
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `bsl-analyzer.server.source` | `github` | Download source: `github` (opensource) or `custom` (proprietary server) |
-| `bsl-analyzer.server.customUrl` | | Custom release server URL |
-| `bsl-analyzer.server.path` | | Manual path to server binary (disables auto-download) |
-| `bsl-analyzer.server.logFile` | | Path to server log file |
-| `bsl-analyzer.server.extraEnv` | `{}` | Extra environment variables for the server |
-| `bsl-analyzer.trace.server` | `off` | Tracing: `off`, `messages`, or `verbose` |
+| Настройка | По умолчанию | Описание |
+|-----------|--------------|----------|
+| `bsl-analyzer.server.path` | | Ручной путь к `bsl-analyzer-app`; отключает управляемую загрузку и обновления |
+| `bsl-analyzer.server.logFile` | | Путь к файлу логов сервера |
+| `bsl-analyzer.server.extraEnv` | `{}` | Дополнительные переменные окружения для процесса сервера |
+| `bsl-analyzer.updates.enabled` | `true` | Включить фоновые проверки обновлений |
+| `bsl-analyzer.updates.checkIntervalHours` | `12` | Интервал фоновой проверки обновлений в часах |
+| `bsl-analyzer.trace.server` | `off` | Трассировка обмена с language server: `off`, `messages`, `verbose` |
 
-## MCP Configuration
+## MCP
 
-BSL Analyzer includes a built-in MCP server for use with AI assistants like Cursor or Claude Code.
-
-Use the command **BSL Analyzer: Copy Server Path** (`Ctrl+Shift+P` → "BSL Analyzer: Copy Server Path") to get the binary path, then add to your `.mcp.json`:
+`bsl-analyzer-app` также можно использовать как MCP-сервер для AI-инструментов. Выполните команду **BSL Analyzer: Copy Server Path**, чтобы получить путь к установленному приложению, и добавьте его в `.mcp.json`:
 
 ```json
 {
   "mcpServers": {
     "bsl-analyzer": {
-      "command": "/path/to/bsl-analyzer",
+      "command": "/path/to/bsl-analyzer-app",
       "args": ["mcp", "--source-dir", "src/cf"]
     }
   }
 }
 ```
 
-## Links
+## Ссылки
 
-- [BSL Analyzer](https://github.com/itrous/bsl-analyzer) — the language server
-- [Issues](https://github.com/itrous/bsl-analyzer-vscode/issues)
+- [BSL Analyzer](https://github.com/itrous/bsl-analyzer)
+- [Сообщить о проблеме](https://github.com/itrous/bsl-analyzer-vscode/issues)
 
-## License
+## Лицензия
 
 MIT

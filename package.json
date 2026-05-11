@@ -1,8 +1,8 @@
 {
-  "name": "bsl-analyzer",
-  "displayName": "BSL Analyzer",
+  "name": "1c-bsl-analyzer",
+  "displayName": "1C BSL Analyzer",
   "description": "High-performance Language Server for BSL (1C:Enterprise)",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "publisher": "bsl-analyzer",
   "license": "MIT",
   "repository": {
@@ -20,7 +20,9 @@
   "activationEvents": [
     "onLanguage:bsl",
     "workspaceContains:**/*.bsl",
-    "onDebugResolve:bsl"
+    "onDebugResolve:bsl",
+    "onCommand:bsl-analyzer.copyServerPath",
+    "onCommand:bsl-analyzer.checkForUpdates"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -110,30 +112,20 @@
       {
         "command": "bsl-analyzer.copyServerPath",
         "title": "BSL Analyzer: Copy Server Path"
+      },
+      {
+        "command": "bsl-analyzer.checkForUpdates",
+        "title": "BSL Analyzer: Check for Updates"
       }
     ],
     "configuration": {
       "type": "object",
       "title": "BSL Analyzer",
       "properties": {
-        "bsl-analyzer.server.source": {
-          "type": "string",
-          "enum": [
-            "github",
-            "custom"
-          ],
-          "default": "github",
-          "description": "Source for downloading bsl-analyzer. 'github' uses GitHub Releases (opensource), 'custom' uses a custom release server."
-        },
-        "bsl-analyzer.server.customUrl": {
-          "type": "string",
-          "default": "",
-          "description": "Custom release server URL (e.g., https://dev.runsystems.ru/releases). Used when server.source is 'custom'."
-        },
         "bsl-analyzer.server.path": {
           "type": "string",
           "default": "",
-          "description": "Path to bsl-analyzer executable. If set, disables auto-download and uses this path directly."
+          "description": "Path to bsl-analyzer-app executable. If set, disables auto-download and update checks for the managed application."
         },
         "bsl-analyzer.trace.server": {
           "type": "string",
@@ -164,6 +156,17 @@
           "type": "string",
           "default": "/tmp/bsl-heaptrack.zst",
           "description": "Output file for heaptrack profiling data."
+        },
+        "bsl-analyzer.updates.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable background update checks for the managed bsl-analyzer-app."
+        },
+        "bsl-analyzer.updates.checkIntervalHours": {
+          "type": "number",
+          "default": 12,
+          "minimum": 1,
+          "description": "Interval in hours for background bsl-analyzer-app update checks."
         }
       }
     }
