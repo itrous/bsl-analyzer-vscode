@@ -1,5 +1,9 @@
 # 1C BSL Analyzer
 
+<p align="center">
+  <img src="assets/icon.png" alt="1C BSL Analyzer" width="128">
+</p>
+
 Расширение VS Code для разработки на BSL (1C:Enterprise): диагностика, автодополнение, переходы по коду и семантическая подсветка через language server.
 
 ## Возможности

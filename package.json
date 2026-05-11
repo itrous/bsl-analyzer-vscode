@@ -2,7 +2,7 @@
   "name": "1c-bsl-analyzer",
   "displayName": "1C BSL Analyzer",
   "description": "Language Server for BSL (1C:Enterprise)",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "publisher": "bsl-analyzer",
   "icon": "assets/icon.png",
   "license": "MIT",
