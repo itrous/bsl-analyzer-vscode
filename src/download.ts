@@ -266,7 +266,12 @@ export async function ensureLauncher(context: vscode.ExtensionContext): Promise<
     const manualPath = config.get<string>('server.path', '');
 
     if (manualPath) {
-        return manualPath;
+        if (fs.existsSync(manualPath)) {
+            return manualPath;
+        }
+        vscode.window.showWarningMessage(
+            `BSL Analyzer: configured server path does not exist, using managed bsl-analyzer-app instead: ${manualPath}`
+        );
     }
 
     const platformInfo = getPlatformInfo();
@@ -356,7 +361,7 @@ export async function checkForUpdate(): Promise<UpdateCheckResult> {
     const config = vscode.workspace.getConfiguration('bsl-analyzer');
     const manualPath = config.get<string>('server.path', '');
 
-    if (manualPath) {
+    if (manualPath && fs.existsSync(manualPath)) {
         return {
             available: false,
             currentVersion: getInstalledBinaryVersion(manualPath),

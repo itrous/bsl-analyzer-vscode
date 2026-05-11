@@ -1,9 +1,10 @@
 {
   "name": "1c-bsl-analyzer",
   "displayName": "1C BSL Analyzer",
-  "description": "High-performance Language Server for BSL (1C:Enterprise)",
-  "version": "0.1.5",
+  "description": "Language Server for BSL (1C:Enterprise)",
+  "version": "0.1.6",
   "publisher": "bsl-analyzer",
+  "icon": "assets/icon.png",
   "license": "MIT",
   "repository": {
     "type": "git",
