@@ -9,6 +9,8 @@ import * as vscode from 'vscode';
 const GITHUB_REPO = 'itrous/bsl-analyzer';
 const META_FILENAME = '.bsl-analyzer.meta.json';
 const ARTIFACT_NAME = 'bsl-analyzer-app';
+const EXTENSION_CONFIG_SECTION = 'bsl-analyzer-lsp';
+const LEGACY_CONFIG_SECTION = 'bsl-analyzer';
 
 interface SourceMeta {
     artifactName?: string;
@@ -262,8 +264,7 @@ export function getInstalledVersion(binaryPath?: string): string | undefined {
 }
 
 export async function ensureLauncher(context: vscode.ExtensionContext): Promise<string | undefined> {
-    const config = vscode.workspace.getConfiguration('bsl-analyzer');
-    const manualPath = config.get<string>('server.path', '');
+    const manualPath = getConfiguredValue<string>('server.path', '');
 
     if (manualPath) {
         if (fs.existsSync(manualPath)) {
@@ -358,8 +359,7 @@ async function installRelease(platformInfo: PlatformInfo, releaseInfo: ReleaseIn
 }
 
 export async function checkForUpdate(): Promise<UpdateCheckResult> {
-    const config = vscode.workspace.getConfiguration('bsl-analyzer');
-    const manualPath = config.get<string>('server.path', '');
+    const manualPath = getConfiguredValue<string>('server.path', '');
 
     if (manualPath && fs.existsSync(manualPath)) {
         return {
@@ -391,6 +391,15 @@ export async function checkForUpdate(): Promise<UpdateCheckResult> {
         latestVersion: latest.version,
         downloadUrl: latest.downloadUrl,
     };
+}
+
+function getConfiguredValue<T>(key: string, defaultValue: T): T {
+    const config = vscode.workspace.getConfiguration(EXTENSION_CONFIG_SECTION);
+    const value = config.get<T>(key);
+    if (value !== undefined) {
+        return value;
+    }
+    return vscode.workspace.getConfiguration(LEGACY_CONFIG_SECTION).get<T>(key, defaultValue);
 }
 
 export async function installUpdate(check: UpdateCheckResult): Promise<InstallResult | undefined> {

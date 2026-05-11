@@ -24,12 +24,12 @@
 
 | Настройка | По умолчанию | Описание |
 |-----------|--------------|----------|
-| `bsl-analyzer.server.path` | | Ручной путь к `bsl-analyzer-app`; отключает управляемую загрузку и обновления |
-| `bsl-analyzer.server.logFile` | | Путь к файлу логов сервера |
-| `bsl-analyzer.server.extraEnv` | `{}` | Дополнительные переменные окружения для процесса сервера |
-| `bsl-analyzer.updates.enabled` | `true` | Включить фоновые проверки обновлений |
-| `bsl-analyzer.updates.checkIntervalHours` | `12` | Интервал фоновой проверки обновлений в часах |
-| `bsl-analyzer.trace.server` | `off` | Трассировка обмена с language server: `off`, `messages`, `verbose` |
+| `bsl-analyzer-lsp.server.path` | | Ручной путь к `bsl-analyzer-app`; отключает управляемую загрузку и обновления |
+| `bsl-analyzer-lsp.server.logFile` | | Путь к файлу логов сервера |
+| `bsl-analyzer-lsp.server.extraEnv` | `{}` | Дополнительные переменные окружения для процесса сервера |
+| `bsl-analyzer-lsp.updates.enabled` | `true` | Включить фоновые проверки обновлений |
+| `bsl-analyzer-lsp.updates.checkIntervalHours` | `12` | Интервал фоновой проверки обновлений в часах |
+| `bsl-analyzer-lsp.trace.server` | `off` | Трассировка обмена с language server: `off`, `messages`, `verbose` |
 
 ## MCP
 

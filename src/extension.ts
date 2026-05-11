@@ -14,8 +14,10 @@ import {
     UpdateCheckResult,
 } from './download';
 
-const LAST_UPDATE_CHECK_KEY = 'bsl-analyzer.lastUpdateCheck';
-const UPDATE_SNOOZE_UNTIL_KEY = 'bsl-analyzer.updateSnoozeUntil';
+const EXTENSION_CONFIG_SECTION = 'bsl-analyzer-lsp';
+const LEGACY_CONFIG_SECTION = 'bsl-analyzer';
+const LAST_UPDATE_CHECK_KEY = 'bsl-analyzer-lsp.lastUpdateCheck';
+const UPDATE_SNOOZE_UNTIL_KEY = 'bsl-analyzer-lsp.updateSnoozeUntil';
 const DEFAULT_UPDATE_CHECK_INTERVAL_HOURS = 12;
 
 let client: LanguageClient | undefined;
@@ -27,7 +29,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     console.log('BSL Analyzer extension is now active');
 
     statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-    statusBarItem.command = 'bsl-analyzer.checkForUpdates';
+    statusBarItem.command = 'bsl-analyzer-lsp.checkForUpdates';
     statusBarItem.text = '$(sync~spin) BSL Analyzer';
     statusBarItem.tooltip = 'BSL Analyzer is starting';
     statusBarItem.show();
@@ -50,9 +52,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
 function registerCommands(context: vscode.ExtensionContext): void {
     context.subscriptions.push(
-        vscode.commands.registerCommand('bsl-analyzer.copyServerPath', () => {
+        vscode.commands.registerCommand('bsl-analyzer-lsp.copyServerPath', () => {
             const serverBinary = currentServerPath
-                || vscode.workspace.getConfiguration('bsl-analyzer').get<string>('server.path', '')
+                || getConfiguredValue<string>('server.path', '')
                 || getInstallPath();
 
             if (serverBinary) {
@@ -65,7 +67,7 @@ function registerCommands(context: vscode.ExtensionContext): void {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('bsl-analyzer.checkForUpdates', () => {
+        vscode.commands.registerCommand('bsl-analyzer-lsp.checkForUpdates', () => {
             void runUpdateCheck(context, true);
         })
     );
@@ -88,11 +90,10 @@ function registerDebugAdapterFactory(context: vscode.ExtensionContext): void {
 async function startLanguageClient(serverPath: string): Promise<boolean> {
     console.log(`Using server: ${serverPath}`);
 
-    const config = vscode.workspace.getConfiguration('bsl-analyzer');
-    const logFile = config.get<string>('server.logFile', '');
-    const heaptrackEnabled = config.get<boolean>('server.heaptrack.enabled', false);
-    const heaptrackOutput = config.get<string>('server.heaptrack.output', '/tmp/bsl-heaptrack.zst');
-    const extraEnv = config.get<Record<string, string>>('server.extraEnv', {});
+    const logFile = getConfiguredValue<string>('server.logFile', '');
+    const heaptrackEnabled = getConfiguredValue<boolean>('server.heaptrack.enabled', false);
+    const heaptrackOutput = getConfiguredValue<string>('server.heaptrack.output', '/tmp/bsl-heaptrack.zst');
+    const extraEnv = getConfiguredValue<Record<string, string>>('server.extraEnv', {});
 
     const serverEnv: Record<string, string | undefined> = {
         ...process.env,
@@ -203,8 +204,7 @@ function formatVersion(version: string): string {
 }
 
 function getUpdateCheckIntervalMs(): number {
-    const config = vscode.workspace.getConfiguration('bsl-analyzer');
-    const hours = config.get<number>('updates.checkIntervalHours', DEFAULT_UPDATE_CHECK_INTERVAL_HOURS);
+    const hours = getConfiguredValue<number>('updates.checkIntervalHours', DEFAULT_UPDATE_CHECK_INTERVAL_HOURS);
     return Math.max(1, hours) * 60 * 60 * 1000;
 }
 
@@ -221,8 +221,7 @@ function scheduleBackgroundUpdateChecks(context: vscode.ExtensionContext): void 
 }
 
 async function maybeRunBackgroundUpdateCheck(context: vscode.ExtensionContext, force = false): Promise<void> {
-    const config = vscode.workspace.getConfiguration('bsl-analyzer');
-    if (!config.get<boolean>('updates.enabled', true)) {
+    if (!getConfiguredValue<boolean>('updates.enabled', true)) {
         return;
     }
 
@@ -353,4 +352,13 @@ export function deactivate(): Thenable<void> | undefined {
         return undefined;
     }
     return client.stop();
+}
+
+function getConfiguredValue<T>(key: string, defaultValue: T): T {
+    const config = vscode.workspace.getConfiguration(EXTENSION_CONFIG_SECTION);
+    const value = config.get<T>(key);
+    if (value !== undefined) {
+        return value;
+    }
+    return vscode.workspace.getConfiguration(LEGACY_CONFIG_SECTION).get<T>(key, defaultValue);
 }

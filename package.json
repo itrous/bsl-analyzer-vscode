@@ -2,7 +2,7 @@
   "name": "bsl-analyzer-lsp",
   "displayName": "1C bsl-analyzer",
   "description": "Language Server for BSL (1C:Enterprise)",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "publisher": "ElishevKirill",
   "icon": "assets/icon.png",
   "license": "MIT",
@@ -22,8 +22,8 @@
     "onLanguage:bsl",
     "workspaceContains:**/*.bsl",
     "onDebugResolve:bsl",
-    "onCommand:bsl-analyzer.copyServerPath",
-    "onCommand:bsl-analyzer.checkForUpdates"
+    "onCommand:bsl-analyzer-lsp.copyServerPath",
+    "onCommand:bsl-analyzer-lsp.checkForUpdates"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -111,11 +111,11 @@
     ],
     "commands": [
       {
-        "command": "bsl-analyzer.copyServerPath",
+        "command": "bsl-analyzer-lsp.copyServerPath",
         "title": "BSL Analyzer: Copy Server Path"
       },
       {
-        "command": "bsl-analyzer.checkForUpdates",
+        "command": "bsl-analyzer-lsp.checkForUpdates",
         "title": "BSL Analyzer: Check for Updates"
       }
     ],
@@ -123,12 +123,12 @@
       "type": "object",
       "title": "BSL Analyzer",
       "properties": {
-        "bsl-analyzer.server.path": {
+        "bsl-analyzer-lsp.server.path": {
           "type": "string",
           "default": "",
           "description": "Path to bsl-analyzer-app executable. If set, disables auto-download and update checks for the managed application."
         },
-        "bsl-analyzer.trace.server": {
+        "bsl-analyzer-lsp.trace.server": {
           "type": "string",
           "enum": [
             "off",
@@ -138,32 +138,32 @@
           "default": "off",
           "description": "Traces the communication between VS Code and the language server."
         },
-        "bsl-analyzer.server.logFile": {
+        "bsl-analyzer-lsp.server.logFile": {
           "type": "string",
           "default": "",
           "description": "Path to log file for server logs (e.g., /tmp/bsl-analyzer.log). Leave empty to disable logging."
         },
-        "bsl-analyzer.server.extraEnv": {
+        "bsl-analyzer-lsp.server.extraEnv": {
           "type": "object",
           "default": {},
           "description": "Extra environment variables for the server process. Example: {\"BSL_PROFILE\": \"*>10\"}"
         },
-        "bsl-analyzer.server.heaptrack.enabled": {
+        "bsl-analyzer-lsp.server.heaptrack.enabled": {
           "type": "boolean",
           "default": false,
           "description": "Enable heaptrack memory profiling. Requires heaptrack to be installed."
         },
-        "bsl-analyzer.server.heaptrack.output": {
+        "bsl-analyzer-lsp.server.heaptrack.output": {
           "type": "string",
           "default": "/tmp/bsl-heaptrack.zst",
           "description": "Output file for heaptrack profiling data."
         },
-        "bsl-analyzer.updates.enabled": {
+        "bsl-analyzer-lsp.updates.enabled": {
           "type": "boolean",
           "default": true,
           "description": "Enable background update checks for the managed bsl-analyzer-app."
         },
-        "bsl-analyzer.updates.checkIntervalHours": {
+        "bsl-analyzer-lsp.updates.checkIntervalHours": {
           "type": "number",
           "default": 12,
           "minimum": 1,
