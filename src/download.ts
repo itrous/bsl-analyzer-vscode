@@ -1,4 +1,5 @@
 import { spawnSync } from 'child_process';
+import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import * as https from 'https';
 import * as http from 'http';
@@ -286,6 +287,8 @@ export async function ensureLauncher(context: vscode.ExtensionContext): Promise<
     const appPath = path.join(platformInfo.installDir, platformInfo.localName);
     const currentMeta = currentSourceMeta(platformInfo);
 
+    cleanupBackups(platformInfo);
+
     if (fs.existsSync(appPath)) {
         const savedMeta = readMeta(platformInfo.installDir);
         if (!sourceChanged(savedMeta, currentMeta)) {
@@ -311,7 +314,6 @@ export async function ensureLauncher(context: vscode.ExtensionContext): Promise<
         async () => {
             try {
                 await installRelease(platformInfo, releaseInfo);
-                writeMeta(platformInfo.installDir, currentSourceMeta(platformInfo, releaseInfo.version, releaseInfo.downloadUrl));
                 return appPath;
             } catch (err) {
                 vscode.window.showErrorMessage(
@@ -323,11 +325,82 @@ export async function ensureLauncher(context: vscode.ExtensionContext): Promise<
     );
 }
 
+function legacyBackupName(platformInfo: PlatformInfo): string {
+    return `${platformInfo.localName}.previous`;
+}
+
+function newBackupName(platformInfo: PlatformInfo): string {
+    return `${legacyBackupName(platformInfo)}.${randomUUID()}`;
+}
+
+function isOwnBackupName(platformInfo: PlatformInfo, name: string): boolean {
+    const legacy = legacyBackupName(platformInfo);
+    if (name === legacy) {
+        return true;
+    }
+    const prefix = `${legacy}.`;
+    return name.startsWith(prefix)
+        && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(name.slice(prefix.length));
+}
+
+function errorCode(err: unknown): string {
+    return (err as NodeJS.ErrnoException)?.code || 'UNKNOWN';
+}
+
+function logCleanupFailure(operation: string, target: string, err: unknown): void {
+    console.warn(
+        `BSL Analyzer: backup cleanup failed (${operation} ${target}): ${errorCode(err)}: ${(err as Error).message}; `
+        + 'installed application is not affected, cleanup will be retried later'
+    );
+}
+
+function removeBackup(backupPath: string): void {
+    try {
+        fs.unlinkSync(backupPath);
+    } catch (err) {
+        if (errorCode(err) !== 'ENOENT') {
+            logCleanupFailure('unlink', backupPath, err);
+        }
+    }
+}
+
+/**
+ * Best-effort removal of backups left by previous installs: the legacy fixed
+ * `<localName>.previous` and generated `<localName>.previous.<uuid>` names.
+ * Backups are kept while the managed executable is missing, because one of them
+ * may be the only copy left after a failed replace and rollback. Failures are
+ * logged and never fail the caller: a locked backup (EPERM on Windows while a
+ * process still runs the old executable) is retried on the next entry.
+ */
+function cleanupBackups(platformInfo: PlatformInfo): void {
+    const appPath = path.join(platformInfo.installDir, platformInfo.localName);
+    if (!fs.existsSync(appPath)) {
+        return;
+    }
+    let names: string[];
+    try {
+        names = fs.readdirSync(platformInfo.installDir);
+    } catch (err) {
+        logCleanupFailure('readdir', platformInfo.installDir, err);
+        return;
+    }
+    for (const name of names) {
+        if (isOwnBackupName(platformInfo, name)) {
+            removeBackup(path.join(platformInfo.installDir, name));
+        }
+    }
+}
+
+/**
+ * Downloads the release, replaces the managed executable and records the
+ * installed version in meta. The install succeeds once the new executable is
+ * in place and meta is written; removing the backup of the previous executable
+ * is optional cleanup and its failure is only logged.
+ */
 async function installRelease(platformInfo: PlatformInfo, releaseInfo: ReleaseInfo): Promise<void> {
     const appPath = path.join(platformInfo.installDir, platformInfo.localName);
     const data = await downloadFile(releaseInfo.downloadUrl);
     const tempPath = path.join(platformInfo.installDir, `${platformInfo.localName}.download`);
-    const backupPath = path.join(platformInfo.installDir, `${platformInfo.localName}.previous`);
 
     fs.mkdirSync(platformInfo.installDir, { recursive: true });
     fs.writeFileSync(tempPath, data);
@@ -336,25 +409,49 @@ async function installRelease(platformInfo: PlatformInfo, releaseInfo: ReleaseIn
         fs.chmodSync(tempPath, 0o755);
     }
 
-    let backupCreated = false;
+    cleanupBackups(platformInfo);
+
+    let backupPath: string | undefined;
     if (fs.existsSync(appPath)) {
-        if (fs.existsSync(backupPath)) {
-            fs.unlinkSync(backupPath);
+        const candidate = path.join(platformInfo.installDir, newBackupName(platformInfo));
+        try {
+            fs.renameSync(appPath, candidate);
+        } catch (err) {
+            throw new Error(
+                `cannot move current application ${appPath} aside (${errorCode(err)}); `
+                + `close processes using it and retry: ${(err as Error).message}`
+            );
         }
-        fs.renameSync(appPath, backupPath);
-        backupCreated = true;
+        backupPath = candidate;
     }
 
     try {
         fs.renameSync(tempPath, appPath);
-        if (backupCreated) {
-            fs.unlinkSync(backupPath);
-        }
     } catch (err) {
-        if (backupCreated && !fs.existsSync(appPath)) {
-            fs.renameSync(backupPath, appPath);
+        if (backupPath && !fs.existsSync(appPath)) {
+            try {
+                fs.renameSync(backupPath, appPath);
+            } catch (restoreErr) {
+                throw new Error(
+                    `failed to install ${appPath}: ${(err as Error).message}; `
+                    + `failed to restore previous application from ${backupPath}: ${(restoreErr as Error).message}`
+                );
+            }
         }
         throw err;
+    }
+
+    try {
+        writeMeta(platformInfo.installDir, currentSourceMeta(platformInfo, releaseInfo.version, releaseInfo.downloadUrl));
+    } catch (err) {
+        throw new Error(
+            `application ${appPath} was replaced, but installed version was not saved to ${getMetaPath(platformInfo.installDir)}: `
+            + `${(err as Error).message}`
+        );
+    }
+
+    if (backupPath) {
+        removeBackup(backupPath);
     }
 }
 
@@ -376,6 +473,8 @@ export async function checkForUpdate(): Promise<UpdateCheckResult> {
             reason: `unsupported platform ${process.platform}-${process.arch}`,
         };
     }
+
+    cleanupBackups(platformInfo);
 
     const appPath = path.join(platformInfo.installDir, platformInfo.localName);
     const savedMeta = readMeta(platformInfo.installDir);
@@ -413,7 +512,6 @@ export async function installUpdate(check: UpdateCheckResult): Promise<InstallRe
         version: check.latestVersion,
         downloadUrl: check.downloadUrl,
     });
-    writeMeta(platformInfo.installDir, currentSourceMeta(platformInfo, check.latestVersion, check.downloadUrl));
     return {
         path: appPath,
         version: check.latestVersion,
