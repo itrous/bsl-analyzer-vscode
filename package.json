@@ -177,7 +177,8 @@
     "build": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "pretest": "npm run compile"
+    "pretest": "npm run compile",
+    "test": "node --test test/download.test.cjs test/extension.test.cjs"
   },
   "dependencies": {
     "vscode-languageclient": "^9.0.1"
