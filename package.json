@@ -2,7 +2,7 @@
   "name": "bsl-analyzer-lsp",
   "displayName": "1C bsl-analyzer",
   "description": "Language Server for BSL (1C:Enterprise)",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "publisher": "ElishevKirill",
   "icon": "assets/icon.png",
   "license": "MIT",
