@@ -1,4 +1,4 @@
-import { spawnSync } from 'child_process';
+import { execFile, spawnSync } from 'child_process';
 import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import * as https from 'https';
@@ -12,6 +12,7 @@ const META_FILENAME = '.bsl-analyzer.meta.json';
 const ARTIFACT_NAME = 'bsl-analyzer-app';
 const EXTENSION_CONFIG_SECTION = 'bsl-analyzer-lsp';
 const LEGACY_CONFIG_SECTION = 'bsl-analyzer';
+const VERSION_PROBE_TIMEOUT_MS = 5000;
 
 interface SourceMeta {
     artifactName?: string;
@@ -354,14 +355,18 @@ function logCleanupFailure(operation: string, target: string, err: unknown): voi
     );
 }
 
-function removeBackup(backupPath: string): void {
+/** Returns true when the backup is most likely held by a running process (EPERM/EBUSY). */
+function removeBackup(backupPath: string): boolean {
     try {
         fs.unlinkSync(backupPath);
     } catch (err) {
-        if (errorCode(err) !== 'ENOENT') {
+        const code = errorCode(err);
+        if (code !== 'ENOENT') {
             logCleanupFailure('unlink', backupPath, err);
         }
+        return code === 'EPERM' || code === 'EBUSY';
     }
+    return false;
 }
 
 /**
@@ -450,8 +455,77 @@ async function installRelease(platformInfo: PlatformInfo, releaseInfo: ReleaseIn
         );
     }
 
-    if (backupPath) {
-        removeBackup(backupPath);
+    if (backupPath && removeBackup(backupPath)) {
+        // Not awaited: the notification must not hold the install until dismissed.
+        void vscode.window.showWarningMessage(
+            'BSL Analyzer: the update was installed, but the old build could not be removed and may still be '
+            + 'running in another process (MCP server or project daemon). Close MCP clients or reload the window, '
+            + 'otherwise the old version may stay in memory.'
+        );
+    }
+}
+
+function runBinaryVersion(binaryPath: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+        execFile(
+            binaryPath,
+            ['--version'],
+            { timeout: VERSION_PROBE_TIMEOUT_MS, encoding: 'utf-8', windowsHide: true },
+            (err, stdout, stderr) => (err ? reject(err) : resolve(`${stdout}${stderr}`))
+        );
+    });
+}
+
+/** Parses `bsl-analyzer 0.4.1` into the meta format (`v0.4.1`). */
+function parseBinaryVersion(output: string): string | undefined {
+    const match = output.match(/^\s*bsl-analyzer\s+v?(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)\s*$/m);
+    return match ? `v${match[1]}` : undefined;
+}
+
+function isSameFile(a: fs.Stats, b: fs.Stats): boolean {
+    return a.ino === b.ino && a.size === b.size && a.mtimeMs === b.mtimeMs;
+}
+
+/**
+ * Rewrites the saved version in meta when it differs from `bsl-analyzer-app --version`
+ * (e.g. the exe was replaced while meta could not be written). Never throws and never
+ * changes meta when the probe fails, times out or cannot be parsed. Resolves true
+ * when meta was rewritten.
+ */
+export async function reconcileMetaVersion(): Promise<boolean> {
+    try {
+        const manualPath = getConfiguredValue<string>('server.path', '');
+        const platformInfo = getPlatformInfo();
+        if ((manualPath && fs.existsSync(manualPath)) || !platformInfo) {
+            return false;
+        }
+        const appPath = path.join(platformInfo.installDir, platformInfo.localName);
+        if (!fs.existsSync(appPath)) {
+            console.log(`BSL Analyzer: meta version check skipped, ${appPath} does not exist`);
+            return false;
+        }
+        const statBefore = fs.statSync(appPath);
+        const output = await runBinaryVersion(appPath);
+        const binaryVersion = parseBinaryVersion(output);
+        if (!binaryVersion) {
+            console.log(`BSL Analyzer: meta version check skipped, cannot parse version from: ${output.trim()}`);
+            return false;
+        }
+        const savedMeta = readMeta(platformInfo.installDir);
+        if (!savedMeta || versionsEqual(savedMeta.version, binaryVersion)) {
+            return false;
+        }
+        // The exe may have been replaced (this or another window) while the probe ran.
+        if (!isSameFile(statBefore, fs.statSync(appPath))) {
+            console.log('BSL Analyzer: meta version check skipped, the executable was replaced meanwhile');
+            return false;
+        }
+        writeMeta(platformInfo.installDir, { ...savedMeta, version: binaryVersion, downloadUrl: undefined });
+        console.log(`BSL Analyzer: meta version ${savedMeta.version ?? 'unknown'} replaced with installed ${binaryVersion}`);
+        return true;
+    } catch (err) {
+        console.log(`BSL Analyzer: meta version check failed: ${(err as Error).message}`);
+        return false;
     }
 }
 
@@ -475,6 +549,7 @@ export async function checkForUpdate(): Promise<UpdateCheckResult> {
     }
 
     cleanupBackups(platformInfo);
+    await reconcileMetaVersion();
 
     const appPath = path.join(platformInfo.installDir, platformInfo.localName);
     const savedMeta = readMeta(platformInfo.installDir);

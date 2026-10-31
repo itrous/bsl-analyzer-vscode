@@ -294,3 +294,177 @@ test('I7: metadata fallback installs without inventing version', async t => {
     assert.ok(h.logs.some(l => /failed to read latest release metadata.*ECONNRESET/.test(l)));
     assert.equal(h.errors.length, 0);
 });
+
+const BUSY_WARNING = /may still be running in another process/;
+
+for (const code of ['EPERM', 'EBUSY']) {
+    test(`busy exe: ${code} on backup removal after install shows one warning, install stays successful`, async t => {
+        const h = createHarness(t);
+        h.seed();
+        lockBackups(h, code);
+        assertResult(await h.install(), h, h.latest);
+        assert.equal(h.uiWarnings.filter(m => BUSY_WARNING.test(m)).length, 1, h.uiWarnings.join('\n'));
+        assert.equal(h.appBytes(), h.bytes);
+        assert.equal(h.meta().version, h.latest);
+        assert.equal(h.errors.length, 0);
+        assertCleanupWarning(h, 'unlink', h.backups()[0], code);
+    });
+}
+
+test('busy exe: no warning without EPERM/EBUSY (clean removal, EIO, ENOENT)', async t => {
+    for (const code of [undefined, 'EIO', 'ENOENT']) {
+        const h = createHarness(t);
+        h.seed();
+        if (code) {
+            h.fs.unlinkSync = p => {
+                if (p.startsWith(`${h.app}.previous`)) throw fault(code, `unlink ${p}`);
+                return fs.unlinkSync(p);
+            };
+        }
+        assertResult(await h.install(), h, h.latest);
+        assert.deepEqual(h.uiWarnings, [], String(code));
+    }
+});
+
+test('busy exe: leftover from an earlier install being locked does not warn when this install cleans up', async t => {
+    const h = createHarness(t);
+    h.seed();
+    h.backup();
+    h.fs.unlinkSync = p => {
+        if (p === `${h.app}.previous`) throw fault('EPERM', `unlink ${p}`);
+        return fs.unlinkSync(p);
+    };
+    assertResult(await h.install(), h, h.latest);
+    assert.deepEqual(h.uiWarnings, []);
+});
+
+test('meta reconcile: matching version leaves meta untouched', async t => {
+    const h = createHarness(t);
+    h.seed('v1.0.0');
+    h.reportVersion('1.0.0');
+    const before = fs.readFileSync(h.metaPath, 'utf8');
+    const writes = [];
+    h.fs.writeFileSync = (p, ...args) => { writes.push(p); return fs.writeFileSync(p, ...args); };
+    assert.equal(await h.download.reconcileMetaVersion(), false);
+    assert.deepEqual(writes, []);
+    assert.equal(fs.readFileSync(h.metaPath, 'utf8'), before);
+    assert.deepEqual(h.probes, [{ file: h.app, timeout: 5000 }]);
+});
+
+test('meta reconcile: differing version is rewritten with the binary version, other fields kept', async t => {
+    const h = createHarness(t);
+    h.seed('v0.4.0');
+    h.reportVersion('0.4.1');
+    const before = h.meta();
+    assert.equal(await h.download.reconcileMetaVersion(), true);
+    const after = h.meta();
+    assert.equal(after.version, 'v0.4.1');
+    assert.equal(after.artifactName, before.artifactName);
+    assert.equal(after.installedAt, before.installedAt);
+    assert.equal(after.downloadUrl, undefined);
+    assert.equal(h.download.getInstalledVersion(), 'v0.4.1');
+    assert.equal((await h.download.checkForUpdate()).currentVersion, 'v0.4.1');
+});
+
+test('meta reconcile: meta without version (metadata fallback install) gets the binary version', async t => {
+    const h = createHarness(t);
+    h.metadataError = true;
+    await h.download.ensureLauncher({});
+    assert.equal(h.meta().version, undefined);
+    h.reportVersion('2.0.0');
+    assert.equal(await h.download.reconcileMetaVersion(), true);
+    assert.equal(h.meta().version, 'v2.0.0');
+});
+
+const failures = {
+    'probe fails': callback => queueMicrotask(() => callback(fault('EACCES', 'spawn'), '', '')),
+    'probe times out': callback => queueMicrotask(() => callback(
+        Object.assign(new Error('Command failed: timed out'), { killed: true, signal: 'SIGTERM' }), '', '')),
+    'output is not parsable': callback => queueMicrotask(() => callback(null, 'something else 1.2.3\n', '')),
+    'output is empty': callback => queueMicrotask(() => callback(null, '', '')),
+    'probe throws synchronously': () => { throw fault('EINVAL', 'spawn'); },
+};
+for (const [name, probe] of Object.entries(failures)) {
+    test(`meta reconcile: ${name} - meta untouched, nothing thrown`, async t => {
+        const h = createHarness(t);
+        h.seed('v0.4.0');
+        h.probe = probe;
+        const before = fs.readFileSync(h.metaPath, 'utf8');
+        const writes = [];
+    h.fs.writeFileSync = (p, ...args) => { writes.push(p); return fs.writeFileSync(p, ...args); };
+        assert.equal(await h.download.reconcileMetaVersion(), false);
+        assert.equal(fs.readFileSync(h.metaPath, 'utf8'), before);
+        assert.equal(h.probes.length, 1);
+        assert.ok(h.logs.some(l => l.includes('meta version check')), h.logs.join('\n'));
+    });
+}
+
+test('meta reconcile: missing exe is not probed and meta is untouched', async t => {
+    const h = createHarness(t);
+    h.seed('v0.4.0');
+    fs.rmSync(h.app);
+    h.reportVersion('0.4.1');
+    assert.equal(await h.download.reconcileMetaVersion(), false);
+    assert.equal(h.probes.length, 0);
+    assert.equal(h.meta().version, 'v0.4.0');
+});
+
+test('meta reconcile: manual server.path is not probed', async t => {
+    const config = {};
+    const h = createHarness(t, { config });
+    h.seed('v0.4.0');
+    const manual = path.join(h.root, 'manual-app.exe');
+    fs.writeFileSync(manual, 'manual-executable');
+    config['bsl-analyzer-lsp.server.path'] = manual;
+    h.reportVersion('0.4.1');
+    assert.equal(await h.download.reconcileMetaVersion(), false);
+    assert.equal(h.probes.length, 0);
+    assert.equal(h.meta().version, 'v0.4.0');
+});
+
+test('meta reconcile: probe of the old exe finishing after an install does not overwrite new meta', async t => {
+    const h = createHarness(t);
+    h.seed('v1.0.0');
+    let finish;
+    h.probe = callback => { finish = () => callback(null, 'bsl-analyzer 1.0.0\n', ''); };
+    const pending = h.download.reconcileMetaVersion();
+    assertResult(await h.install(), h, h.latest);
+    finish();
+    assert.equal(await pending, false);
+    assert.equal(h.meta().version, h.latest);
+});
+
+test('meta reconcile: probe of the old exe finishing after an external replacement does not overwrite meta', async t => {
+    const h = createHarness(t);
+    h.seed('v1.0.0');
+    let finish;
+    h.probe = callback => { finish = () => callback(null, 'bsl-analyzer 1.0.0\n', ''); };
+    const pending = h.download.reconcileMetaVersion();
+    // Another window installs v2 into the same directory (new file, new inode).
+    fs.writeFileSync(`${h.app}.other`, 'other-window-executable');
+    fs.renameSync(`${h.app}.other`, h.app);
+    fs.writeFileSync(h.metaPath, JSON.stringify({ artifactName: h.assetName, version: 'v2.0.0' }));
+    finish();
+    assert.equal(await pending, false);
+    assert.equal(h.meta().version, 'v2.0.0');
+});
+
+test('meta reconcile: checkForUpdate reconciles first, so a stale meta does not trigger a needless update', async t => {
+    const h = createHarness(t);
+    h.seed('v1.0.0', 'already-new-executable');
+    h.reportVersion('2.0.0');
+    const check = await h.download.checkForUpdate();
+    assert.equal(check.available, false);
+    assert.equal(check.currentVersion, 'v2.0.0');
+    assert.equal(h.meta().version, 'v2.0.0');
+});
+
+test('meta reconcile: checkForUpdate survives a failing probe', async t => {
+    const h = createHarness(t);
+    h.seed('v1.0.0');
+    h.probe = callback => queueMicrotask(() => callback(fault('EACCES', 'spawn'), '', ''));
+    const check = await h.download.checkForUpdate();
+    assert.equal(check.available, true);
+    assert.equal(check.currentVersion, 'v1.0.0');
+    assert.equal(h.meta().version, 'v1.0.0');
+});

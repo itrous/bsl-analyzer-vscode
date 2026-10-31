@@ -11,6 +11,7 @@ import {
     getInstalledVersion,
     getInstallPath,
     installUpdate,
+    reconcileMetaVersion,
     UpdateCheckResult,
 } from './download';
 
@@ -46,6 +47,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
     currentServerPath = serverPath;
     updateStatusBar(serverPath);
+    // Not awaited: the check never rejects and must not delay the language client.
+    void reconcileMetaVersion().then((rewritten) => {
+        if (rewritten) {
+            updateStatusBar(currentServerPath);
+        }
+    });
     await startLanguageClient(serverPath);
     scheduleBackgroundUpdateChecks(context);
 }
