@@ -105,3 +105,45 @@ test('I1: clean update reports success without cleanup warning or external proce
     assert.equal(h.warnings.length, 0);
     assert.deepEqual(h.forbidden, []);
 });
+
+test('busy exe: update with locked backup warns once and still reports success', async t => {
+    const h = createHarness(t);
+    h.seed();
+    h.fs.unlinkSync = p => {
+        if (p.startsWith(`${h.app}.previous`)) throw fault('EBUSY', `unlink ${p}`);
+        return fs.unlinkSync(p);
+    };
+    const extension = createExtension(h);
+    await extension.activate();
+    await extension.update();
+    assert.equal(h.uiWarnings.filter(m => m.includes('may still be running')).length, 1, h.uiWarnings.join('\n'));
+    assert.ok(h.infos.some(m => m === 'BSL Analyzer updated to v2.0.0'));
+    assert.equal(h.errors.length, 0);
+    assert.deepEqual(h.forbidden, []);
+});
+
+test('meta reconcile: activation does not wait for a hanging version probe and heals meta once it answers', async t => {
+    const h = createHarness(t);
+    h.seed('v1.0.0');
+    let answer;
+    h.probe = callback => { answer = () => callback(null, 'bsl-analyzer 1.5.0\n', ''); };
+    const extension = createExtension(h);
+    await extension.activate(); // resolves although the probe has not answered
+    assert.deepEqual(h.trace, ['start']);
+    assert.equal(h.meta().version, 'v1.0.0');
+    answer();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(h.meta().version, 'v1.5.0');
+    assert.deepEqual(h.forbidden, []);
+});
+
+test('meta reconcile: failing version probe neither breaks nor delays activation', async t => {
+    const h = createHarness(t);
+    h.seed('v1.0.0');
+    h.probe = callback => callback(fault('EACCES', 'spawn'), '', '');
+    const extension = createExtension(h);
+    await extension.activate();
+    assert.deepEqual(h.trace, ['start']);
+    assert.equal(h.meta().version, 'v1.0.0');
+    assert.equal(h.errors.length, 0);
+});

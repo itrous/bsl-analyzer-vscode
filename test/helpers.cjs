@@ -39,11 +39,14 @@ function createHarness(t, { platform = 'win32', config = {} } = {}) {
     const installDir = platform === 'win32' ? path.join(root, 'bsl-analyzer-app') : path.join(root, '.local', 'bin');
     const app = path.join(installDir, localName);
     const metaPath = path.join(installDir, META);
-    const warnings = [], errors = [], infos = [], logs = [], requests = [], trace = [], forbidden = [];
+    const probes = [];
+    const warnings = [], uiWarnings = [], errors = [], infos = [], logs = [], requests = [], trace = [], forbidden = [];
     const fsApi = { ...fs };
     const h = {
         root, installDir, app, metaPath, localName, assetName,
-        warnings, errors, infos, logs, requests, trace, forbidden, fs: fsApi,
+        warnings, uiWarnings, errors, infos, logs, requests, trace, forbidden, fs: fsApi,
+        // Result of `<app> --version`, as `(callback) => void` or undefined for ENOENT.
+        probe: undefined, probes,
         latest: 'v2.0.0', bytes: 'new-executable', metadataError: false, downloadError: false,
         url: 'https://fixture.invalid/app',
         seed(version = 'v1.0.0', bytes = 'old-executable') {
@@ -69,6 +72,10 @@ function createHarness(t, { platform = 'win32', config = {} } = {}) {
         meta: () => JSON.parse(fs.readFileSync(metaPath, 'utf8')),
         appBytes: () => fs.readFileSync(app, 'utf8'),
         downloads: () => requests.filter(url => !url.startsWith('https://api.github.com/')),
+        // `bsl-analyzer-app --version` prints the version without the tag's `v`.
+        reportVersion(version) {
+            h.probe = callback => queueMicrotask(() => callback(null, `bsl-analyzer ${version}\n`, ''));
+        },
         install(version = h.latest) {
             return h.download.installUpdate({ available: true, latestVersion: version, downloadUrl: h.url });
         },
@@ -82,12 +89,18 @@ function createHarness(t, { platform = 'win32', config = {} } = {}) {
             assert.ok(['--version', '--launcher-version'].includes(args[0]));
             return { status: 0, stdout: 'v1.0.0', stderr: '' };
         },
+        execFile: (file, args, options, callback) => {
+            assert.deepEqual(Array.from(args), ['--version']);
+            probes.push({ file, timeout: options.timeout });
+            if (h.probe) h.probe(callback);
+            else queueMicrotask(() => callback(fault('ENOENT', 'spawn'), '', ''));
+        },
         spawn: forbid('spawn'), exec: forbid('exec'), execSync: forbid('execSync'),
-        execFile: forbid('execFile'), execFileSync: forbid('execFileSync'), fork: forbid('fork'),
+        execFileSync: forbid('execFileSync'), fork: forbid('fork'),
     };
     const processApi = { platform, arch: 'x64', env: { LOCALAPPDATA: root }, kill: forbid('kill') };
     const window = {
-        showWarningMessage: message => { warnings.push(message); return Promise.resolve(); },
+        showWarningMessage: message => { warnings.push(message); uiWarnings.push(message); return Promise.resolve(); },
         showErrorMessage: message => { errors.push(message); return Promise.resolve(); },
         showInformationMessage: (message, ...choices) => {
             infos.push(message);
