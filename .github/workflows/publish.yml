@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
@@ -27,13 +28,18 @@ jobs:
         with:
           files: '*.vsix'
 
+      - name: Publish to Open VSX (Cursor)
+        run: |
+          set -eu
+          count=$(ls -1 *.vsix | wc -l)
+          if [ "$count" -ne 1 ]; then
+            echo "expected exactly one .vsix, found $count" >&2
+            exit 1
+          fi
+          npx --yes ovsx@1.3.0 publish *.vsix --trusted-publishing
+
       # Uncomment when Marketplace publisher is ready:
       # - name: Publish to VS Code Marketplace
       #   run: npx @vscode/vsce publish --no-update-package-json
       #   env:
       #     VSCE_PAT: ${{ secrets.VSCE_PAT }}
-      #
-      # - name: Publish to Open VSX (Cursor)
-      #   run: npx ovsx publish --no-update-package-json
-      #   env:
-      #     OVSX_PAT: ${{ secrets.OVSX_PAT }}
